@@ -10,6 +10,7 @@ import csv
 import os
 from datetime import datetime
 import functools
+import re
 
 # global var
 in_data = './input_data/'
@@ -20,6 +21,9 @@ output_file = ''
 tmp_file = 'tmp_file'
 csv_ext = '.csv'
 in_data_header = ''
+cnt_lst_images_label = 0
+cnt_lst_images = 0
+
 total_files_in = 0
 total_json_failed = 0
 total_json_repair_failed = 0
@@ -30,8 +34,9 @@ log_abbrv = {'tfi': 'Total Files In',
              'tjrf': 'Total JSON Repair Failed',
              'td': 'Total Duplicates',
              'tmrv': 'Total Missing Repair Values',
-             'tdcf': 'Total Date Convert Failures'}
-log_sum = {'tfi': 1, 'tjf': 0, 'tjrf': 0, 'td': 0, 'tmrv': 0, 'tdcf': 0}
+             'tdcf': 'Total Date Convert Failures',
+             'rip': 'Total images remove with parentheses'}
+log_sum = {'tfi': 0, 'tjf': 0, 'tjrf': 0, 'td': 0, 'tmrv': 0, 'tdcf': 0, 'rip': 0}
 
 
 def main(args):
@@ -152,13 +157,13 @@ def repair_img_data(row):
     print("Final Cleaned Additional Images Labels :")
     print(lst_add_img_lbl)
     add_img = origin['additional_images'].split(",")
-    lst_add_img = repair_additional_images(add_img)
+    lst_add_img = repair_additional_images(add_img, lst_add_img_lbl)
     print("Final Cleaned Additional Images:")
     print(*lst_add_img, sep="\n")
     print("\n#---------End of process-------#\n\n\n")
 
 
-def repair_additional_images(origin_lst):
+def repair_additional_images(origin_lst, lbl_lst):
     # print("Repair Additional Images Origin List:")
     # print(*origin_lst, sep="\n")
     unique_lst = remove_duplicates(origin_lst)
@@ -168,13 +173,20 @@ def repair_additional_images(origin_lst):
     unique_lst = remove_image_media(unique_lst)
     # print("Repair Additional Images Removed media images #3:")
     # print(*unique_lst, sep="\n")
+    unique_lst = remove_image_parentheses(unique_lst)
+    # print("Repair Additional Images Removed parentheses images #4:")
+    # print(*unique_lst, sep="\n")
     unique_lst = remove_image_date(unique_lst)
-    # print("Repair Additional Images Removed date images #4:")
+    # print("Repair Additional Images Removed date images #5:")
+    # print(*unique_lst, sep="\n")
+    unique_lst = match_images_to_label_count(unique_lst, lbl_lst)
+    # print("Repair Additional Images Removed date images #5:")
     # print(*unique_lst, sep="\n")
     return unique_lst
 
 
 def repair_additional_images_label(origin_lst):
+    global cnt_lst_images_label
     # print("Repair Origin List: {}".format(origin_lst))
     unique_lst = remove_duplicates(origin_lst)
     # print("Repair Cleaned List #1: {}".format(unique_lst))
@@ -284,6 +296,47 @@ def remove_image_date(lst):
                 clean_lst.add(val_1)
 
     return clean_lst
+
+
+def remove_image_parentheses(lst):
+    global log_sum
+    clean_lst = set()
+
+    for idx, val in enumerate(lst):
+        res = re.search(r'\(', val)
+        if res:
+            log_sum['rip'] = log_sum['rip'] + 1
+        else:
+            clean_lst.add(val)
+
+    return clean_lst
+
+
+def match_images_to_label_count(img_lst, lbl_lst):
+    global log_sum
+    clean_lst = set()
+    clean_lbl_lst = set()
+    cnt_lbl_lst = len(lbl_lst)
+    cnt_img_lst = len(img_lst)
+    seq_lst = ['02', '03', '04', '05', '06', '07', '08']
+    # Both list need to have items with numbers in this sequence: 02, 03, 04, 05, 06, 07, 08
+    if cnt_img_lst == cnt_lbl_lst:
+        # if the list count are equal, nothing to do
+        return [img_lst, lbl_lst]
+    if cnt_img_lst < 7:
+        # if we have less then 7 images, we need to bolster
+        for seq in seq_lst:
+            pass
+
+    if cnt_lbl_lst < 7:
+        # if we have less then 7 labels, we need to bolster
+        for seq in seq_lst:
+            try:
+                lbl_lst.index(seq)
+            except ValueError:
+                clean_lbl_lst.add(seq)
+
+    return [clean_lst, clean_lbl_lst]
 
 
 def compare_lst(a, b):
