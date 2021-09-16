@@ -35,8 +35,11 @@ log_abbrv = {'tfi': 'Total Files In',
              'td': 'Total Duplicates',
              'tmrv': 'Total Missing Repair Values',
              'tdcf': 'Total Date Convert Failures',
-             'rip': 'Total images remove with parentheses'}
-log_sum = {'tfi': 0, 'tjf': 0, 'tjrf': 0, 'td': 0, 'tmrv': 0, 'tdcf': 0, 'rip': 0}
+             'rip': 'Total images remove with parentheses',
+             'llb': 'Labels Lists Bolstered',
+             'ilb': 'Images Lists Bolstered',
+             'imau': 'Images Missing All URLS'}
+log_sum = {'tfi': 0, 'tjf': 0, 'tjrf': 0, 'td': 0, 'tmrv': 0, 'tdcf': 0, 'rip': 0, 'llb': 0, 'ilb': 0, 'imau': 0}
 
 
 def main(args):
@@ -179,10 +182,23 @@ def repair_additional_images(origin_lst, lbl_lst):
     unique_lst = remove_image_date(unique_lst)
     # print("Repair Additional Images Removed date images #5:")
     # print(*unique_lst, sep="\n")
-    unique_lst = match_images_to_label_count(unique_lst, lbl_lst)
-    # print("Repair Additional Images Removed date images #5:")
-    # print(*unique_lst, sep="\n")
-    return unique_lst
+    unique_lst = split_img_diff_skus(unique_lst)
+    print("Repair Additional Images Split Skus #6:")
+    print(*unique_lst, sep="\n")
+
+    for element in unique_lst:
+        if isinstance(element, list):
+            img_lbl_lst = pad_images_to_label_count(element, lbl_lst)
+            print("Repair Additional Images Removed date images #7:")
+            print(*unique_lst, sep="\n")
+        else:
+            img_lbl_lst = pad_images_to_label_count(unique_lst, lbl_lst)
+
+    # sys.exit(10)
+
+    unique_img_lst = img_lbl_lst[0]
+    unique_lbl_lst = img_lbl_lst[1]
+    return unique_img_lst
 
 
 def repair_additional_images_label(origin_lst):
@@ -265,7 +281,7 @@ def remove_image_media(lst):
 def remove_image_date(lst):
     global log_sum
     date_obj_lst = set()
-    clean_lst = set()
+    clean_lst = []
 
     for idx, val in enumerate(lst):
         # split the string to get the date
@@ -293,7 +309,7 @@ def remove_image_date(lst):
         # print("Newest Date String: {}".format(newest_date_str))
         for val_1 in lst:
             if val_1.find(newest_date_str) != -1:
-                clean_lst.add(val_1)
+                clean_lst.append(val_1)
 
     return clean_lst
 
@@ -312,31 +328,85 @@ def remove_image_parentheses(lst):
     return clean_lst
 
 
-def match_images_to_label_count(img_lst, lbl_lst):
+def pad_images_to_label_count(img_lst, lbl_lst):
     global log_sum
-    clean_lst = set()
-    clean_lbl_lst = set()
+    clean_img_lst = []
+    clean_lbl_lst = []
     cnt_lbl_lst = len(lbl_lst)
     cnt_img_lst = len(img_lst)
-    seq_lst = ['02', '03', '04', '05', '06', '07', '08']
+
+    print("Origin Label List Count: {}".format(cnt_lbl_lst))
+    print("Origin Label List: {}".format(lbl_lst))
+    print("Origin Image List Count: {}".format(cnt_img_lst))
+    print("Origin Image List: \n")
+    print(*img_lst, sep='\n')
+
     # Both list need to have items with numbers in this sequence: 02, 03, 04, 05, 06, 07, 08
     if cnt_img_lst == cnt_lbl_lst:
         # if the list count are equal, nothing to do
         return [img_lst, lbl_lst]
-    if cnt_img_lst < 7:
-        # if we have less then 7 images, we need to bolster
-        for seq in seq_lst:
-            pass
 
     if cnt_lbl_lst < 7:
         # if we have less then 7 labels, we need to bolster
-        for seq in seq_lst:
+        for x in range(2, 9):
+            y = "0" + str(x)
             try:
-                lbl_lst.index(seq)
+                lbl_lst.index(y)
             except ValueError:
-                clean_lbl_lst.add(seq)
+                lbl_lst.append(y)
+        log_sum['llb'] = log_sum['llb'] + 1
+        # print("Full List: {}".format(lbl_lst))
 
-    return [clean_lst, clean_lbl_lst]
+    if 0 < cnt_img_lst < 7:
+        # if we have less then 7 images, we need to bolster
+        for x in lbl_lst:
+            x_first = img_lst[0]
+            x_lst = x_first.split("_")
+            x_ext = x_lst[1].split(".")
+            clean_img_lst.append(x_lst[0] + '_' + x + '.' + x_ext[1])
+        log_sum['ilb'] = log_sum['ilb'] + 1
+        # print(*clean_img_lst, sep="\n")
+    else:
+        log_sum['imau'] = log_sum['imau'] + 1
+        return [img_lst, lbl_lst]
+
+    return [clean_img_lst, clean_lbl_lst]
+
+
+def split_img_diff_skus(img_lst):
+    clean_lst = []
+    clean_img_lst = []
+    clean_split_lst = []
+    if len(img_lst) > 0:
+        x_lst = img_lst[0].split('-')
+        # print(*x_lst, sep='\n')
+        y_lst = x_lst[-1].split('_')
+        # print(*y_lst, sep='\n')
+        if len(y_lst) > 0:
+            sku_model = y_lst[0]
+        else:
+            return img_lst
+        print("Sku Model Id: {}".format(sku_model))
+    else:
+        return img_lst
+
+    for img_url in img_lst:
+        if img_url.find(sku_model) == -1:
+            clean_split_lst.append(img_url)
+        else:
+            clean_img_lst.append(img_url)
+
+    print("Img List: ")
+    print(*clean_img_lst, sep="\n")
+    print("Img Split List: ")
+    print(*clean_split_lst, sep="\n")
+
+    if len(clean_split_lst) > 0:
+        clean_lst.append(clean_img_lst)
+        clean_lst.append(clean_split_lst)
+        return clean_lst
+
+    return clean_img_lst
 
 
 def compare_lst(a, b):
