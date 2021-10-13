@@ -9,51 +9,114 @@ import json
 import csv
 import os
 from datetime import datetime
+import time
 import functools
 import re
+import pprint
 
 # global var
 in_data = './input_data/'
 out_data = './output_data/'
-tmp_data = './tmp_data/'
+review_data = './review_data/'
+log_data = './log_data/'
 input_file = ''
 output_file = ''
+log_file = 'log_run_data'
 tmp_file = 'tmp_file'
 csv_ext = '.csv'
+json_ext = '.json'
 in_data_header = ''
+start_milli_sec = 0
+
 cnt_lst_images_label = 0
 cnt_lst_images = 0
-
 total_files_in = 0
 total_json_failed = 0
 total_json_repair_failed = 0
 total_duplicates = 0
 total_missing_repair_values = 0
-log_abbrv = {'tfi': 'Total Files In',
-             'tjf': 'Total JSON Failed',
-             'tjrf': 'Total JSON Repair Failed',
-             'td': 'Total Duplicates',
-             'tmrv': 'Total Missing Repair Values',
-             'tdcf': 'Total Date Convert Failures',
-             'rip': 'Total images remove with parentheses',
-             'llb': 'Labels Lists Bolstered',
-             'ilb': 'Images Lists Bolstered',
-             'imau': 'Images Missing All URLS'}
-log_sum = {'tfi': 0, 'tjf': 0, 'tjrf': 0, 'td': 0, 'tmrv': 0, 'tdcf': 0, 'rip': 0, 'llb': 0, 'ilb': 0, 'imau': 0}
+
+log_abbrv = {
+    'ipf': 'Input File Name',
+    'opf': 'Output File Name',
+    'tfi': 'Total Records to check',
+    'tjf': 'Total JSON Convert Failed',
+    'tjv': 'Total JSON Values Converted',
+    'tjrf': 'Total JSON Repair Failed',
+    'td': 'Total Image Duplicates',
+    'tmrv': 'Total Missing Values Repaired',
+    'tdcf': 'Total File Date Convert Failures',
+    'rip': 'Total Images Removed With Parentheses',
+    'llb': 'Image Labels Lists Padded',
+    'ilb': 'Images  Padded',
+    'imau': 'Images Missing All URLS',
+    'tcis': 'Total Cleaned Items Saved',
+    'msg': 'Message(s)',
+    'trt': 'Total Run Time'}
+log_sum = {'tfi': 0, 'tjf': 0, 'tjrf': 0, 'td': 0, 'tmrv': 0, 'tdcf': 0, 'rip': 0, 'llb': 0, 'ilb': 0, 'imau': 0,
+           'ipf': '', 'opf': '', 'tjv': 0, 'msg': '', 'rdlbl': 0, 'r01lbl': 0, 'reptlbl': 0, 'ralphalbl': 0,
+           'tcis': 0, 'trt': 0}
 
 
 def main(args):
+    global log_sum
+    get_run_time(time.time(), False)
     get_args(args)
-    print('Input file is: ', input_file)
-    print('Output file is: ', output_file)
-    read_csv(in_data + input_file + csv_ext, "overview")
-    if log_sum['tfi'] > 0:
-        # name of csv file
-        filename = tmp_data + tmp_file + csv_ext
-        read_csv(filename, 'repair')
+    log_sum['ipf'] = input_file
+    log_sum['opf'] = output_file
+    # open the input file and read the content
+    lst_input_rows = read_csv(in_data + input_file + csv_ext)
+    # get the value from the row.
+    dir_value = get_value_column(lst_input_rows)
+    # filter all values with duplicates, return a list with the duplicates
+    lst_dups = filter_duplicates(dir_value)
+    # No duplicates, everything is okay
+    if log_sum['td'] < 1:
+        log_sum['msg'] += '/ No duplicates found, end the process'
+        sys.exit()
+    # save the duplicates for later review
+    file_name = review_data + 'review_' + log_sum['ipf']
+    save_json(lst_dups, file_name)
+    lst_final_cleaned = []
+    # Loop over the list
+    for item in lst_dups:
+        # remove label duplicates
+        lst_clean_add_img_lbl = remove_duplicates(item['additional_images_label'].split(','))
+        lst_clean_add_img_lbl = remove_label_01(lst_clean_add_img_lbl)
+        lst_clean_add_img_lbl = remove_label_empty(lst_clean_add_img_lbl)
+        lst_clean_add_img_lbl = remove_label_alpha(lst_clean_add_img_lbl)
+        lst_clean_add_img_lbl = sorted(lst_clean_add_img_lbl, key=int)
+        # Convert the list into a comma-delimited string and return to value object'
+        item['additional_images_label'] = ",".join(lst_clean_add_img_lbl)
+        # Clean the images in additional_images
+        lst_clean_add_img = remove_duplicates(item['additional_images'].split(','))
+        lst_clean_add_img = remove_image_01(lst_clean_add_img)
+        lst_clean_add_img = remove_image_media(lst_clean_add_img)
+        lst_clean_add_img = remove_image_parentheses(lst_clean_add_img)
+        lst_clean_add_img = remove_image_date(lst_clean_add_img)
+        lst_clean_add_img = split_img_diff_skus(lst_clean_add_img)
 
-    # print(*log_sum, sep="\n")
-    print(log_sum)
+        if isinstance(lst_clean_add_img, list):
+            if len(lst_clean_add_img) < 1:
+                continue
+        for element in lst_clean_add_img:
+            if isinstance(element, list):
+                img_lbl_lst = pad_images_to_label_count(element, lst_clean_add_img_lbl)
+            else:
+                img_lbl_lst = pad_images_to_label_count(lst_clean_add_img, lst_clean_add_img_lbl)
+
+        unique_img_lst = img_lbl_lst[0]
+        unique_lbl_lst = img_lbl_lst[1]
+
+        item['additional_images'] = ",".join(unique_img_lst)
+        item['additional_images_label'] = ",".join(unique_lbl_lst)
+        lst_final_cleaned.append(item)
+
+    lst_final = add_value_column(lst_input_rows, lst_final_cleaned)
+    log_sum['tcis'] = len(lst_final)
+    save_csv(lst_final, out_data + output_file, in_data_header)
+    log_sum['trt'] = get_run_time(time.time(), True)
+    handle_log_sum()
 
 
 def get_args(argv):
@@ -75,8 +138,18 @@ def get_args(argv):
             output_file = arg
 
 
-def read_csv(csv_file, level):
-    global total_files_in
+def read_csv(csv_file):
+    # We need to do this, because some of the change_log exports are to big for the memory
+    max_int = sys.maxsize
+    while True:
+        # decrease the max_int value by factor 10
+        # as long as the OverflowError occurs.
+        try:
+            csv.field_size_limit(max_int)
+            break
+        except OverflowError:
+            max_int = int(max_int / 10)
+
     global log_sum
     global in_data_header
     # open file in read mode
@@ -85,36 +158,60 @@ def read_csv(csv_file, level):
         csv_reader = csv.reader(read_obj)
         in_data_header = next(csv_reader)
         # Iterate over each row in the csv using reader object
+        csv_rows = []
         for row in csv_reader:
+            csv_rows.append(row)
             log_sum['tfi'] = log_sum['tfi'] + 1
-            # row variable is a list that represents a row in csv
-            # print(row)
-            if level == 'overview':
-                filter_overview(row)
-            elif level == 'repair':
-                repair_img_data(row)
+
+    return csv_rows
 
 
-def filter_overview(row):
+def get_value_column(rows):
     global log_sum
     # Get only the value[4] label for filtering
-    # print("Additional Images Label:{}".format(row[4]))
-    try:
-        j_value = json.loads(row[4])
-    except json.decoder.JSONDecodeError:
-        log_sum['tjf'] = log_sum['tjf'] + 1
-        return
+    lst_value_column = []
+    for row in rows:
+        try:
+            lst_value_column.append(json.loads(row[4]))
+            log_sum['tjv'] = log_sum['tjv'] + 1
+        except json.decoder.JSONDecodeError:
+            log_sum['tjf'] = log_sum['tjf'] + 1
+            continue
 
-    j_add_img_lbl = j_value["additional_images_label"]
-    # print("Add Img Label: {}".format(j_add_img_lbl))
-    add_img_lbl_list = j_add_img_lbl.split(",")
-    print("Add Img Label List: {}".format(add_img_lbl_list))
-    if check_if_duplicates(add_img_lbl_list):
-        log_sum['td'] = log_sum['td'] + 1
-        print("Duplicates in List: {}".format("YES"))
-        # name of csv file
-        filename = tmp_data + tmp_file + csv_ext
-        save_tmp_csv(row, filename)
+    return lst_value_column
+
+
+def add_value_column(input_rows, cleaned_rows):
+    lst_final = []
+    for c_row in cleaned_rows:
+        c_sku = c_row['sku']
+        set_of_elem = []
+        for i_row in input_rows:
+            if int(i_row[2]) in set_of_elem:
+                continue
+            set_of_elem.append(int(i_row[2]))
+            if int(i_row[2]) == c_sku:
+                x_row = i_row
+                x_row[4] = c_row  # replace origin value column content with the cleaned content
+                x_row[0] = None  # remove the record id, create new one when import into table
+                x_row[5] = None  # remove the record date, create a new date when import into table
+                lst_final.append(x_row)
+
+    return lst_final
+
+
+def filter_duplicates(rows):
+    global log_sum
+    lst_dups = []
+    for row in rows:
+        if check_if_duplicates(row["additional_images_label"].split(',')):
+            log_sum['td'] = log_sum['td'] + 1
+            lst_dups.append(row)
+
+    if len(lst_dups) < 1:
+        return False
+
+    return lst_dups
 
 
 def check_if_duplicates(lst_img):
@@ -128,73 +225,63 @@ def check_if_duplicates(lst_img):
     return False
 
 
-def save_tmp_csv(row, filename):
-    file_exists = os.path.isfile(filename)
+def save_json(rows, filename):
+    file_exists = True
+    cnt = 0
+    final_file_name = ''
+    while file_exists:
+        final_file_name = filename + '_' + str(cnt) + json_ext
+        file_exists = os.path.isfile(final_file_name)
+        cnt = cnt + 1
+
+    with open(final_file_name, 'w') as outfile:
+        for row in rows:
+            json.dump(row, outfile)
+
+
+def save_csv(rows, filename, headers):
+    file_exists = True
+    cnt = 0
+    final_file_name = ''
+    while file_exists:
+        final_file_name = filename + '_' + str(cnt) + csv_ext
+        file_exists = os.path.isfile(final_file_name)
+        cnt = cnt + 1
+
     # writing to csv file
-    with open(filename, 'a', newline="") as csvfile:
+    with open(final_file_name, 'a', newline="") as csv_file:
         # creating a csv writer object
-        csvwriter = csv.writer(csvfile)
-        if not file_exists:
+        csv_writer = csv.writer(csv_file)
+        if headers:
             # use the header from the original img data file.
-            csvwriter.writerow(in_data_header)
-
+            csv_writer.writerow(in_data_header)
         # writing the data rows
-        csvwriter.writerow(row)
-
-
-def repair_img_data(row):
-    global log_sum
-    # value is item [4]
-    try:
-        origin = json.loads(row[4])
-    except IndexError:
-        log_sum['tmrv'] = log_sum['tmrv'] + 1
-        return
-    except json.decoder.JSONDecodeError:
-        log_sum['tjrf'] = log_sum['tjrf'] + 1
-        return
-    # JSON ITEMS: sku, base_image, base_image_label, small_image, small_image_label, thumbnail_image
-    # thumbnail_image_label, additional_images, additional_images_label
-    add_img_lbl = origin['additional_images_label'].split(",")
-    lst_add_img_lbl = repair_additional_images_label(add_img_lbl)
-    print("Final Cleaned Additional Images Labels :")
-    print(lst_add_img_lbl)
-    add_img = origin['additional_images'].split(",")
-    lst_add_img = repair_additional_images(add_img, lst_add_img_lbl)
-    print("Final Cleaned Additional Images:")
-    print(*lst_add_img, sep="\n")
-    print("\n#---------End of process-------#\n\n\n")
+        for row in rows:
+            csv_writer.writerow(row)
 
 
 def repair_additional_images(origin_lst, lbl_lst):
-    # print("Repair Additional Images Origin List:")
-    # print(*origin_lst, sep="\n")
     unique_lst = remove_duplicates(origin_lst)
-    # print("Repair Additional Images Removed Duplicates #1: {}".format(unique_lst))
     unique_lst = remove_image_01(unique_lst)
-    # print("Repair Additional Images Removed 01 images #2: {}".format(unique_lst))
     unique_lst = remove_image_media(unique_lst)
-    # print("Repair Additional Images Removed media images #3:")
-    # print(*unique_lst, sep="\n")
     unique_lst = remove_image_parentheses(unique_lst)
-    # print("Repair Additional Images Removed parentheses images #4:")
-    # print(*unique_lst, sep="\n")
+    if isinstance(unique_lst, list):
+        if len(unique_lst) < 1:
+            return False
+    else:
+        return False
     unique_lst = remove_image_date(unique_lst)
-    # print("Repair Additional Images Removed date images #5:")
-    # print(*unique_lst, sep="\n")
     unique_lst = split_img_diff_skus(unique_lst)
-    print("Repair Additional Images Split Skus #6:")
-    print(*unique_lst, sep="\n")
+
+    if isinstance(unique_lst, list):
+        if len(unique_lst) < 1:
+            sys.exit(10)
 
     for element in unique_lst:
         if isinstance(element, list):
             img_lbl_lst = pad_images_to_label_count(element, lbl_lst)
-            print("Repair Additional Images Removed date images #7:")
-            print(*unique_lst, sep="\n")
         else:
             img_lbl_lst = pad_images_to_label_count(unique_lst, lbl_lst)
-
-    # sys.exit(10)
 
     unique_img_lst = img_lbl_lst[0]
     unique_lbl_lst = img_lbl_lst[1]
@@ -203,53 +290,58 @@ def repair_additional_images(origin_lst, lbl_lst):
 
 def repair_additional_images_label(origin_lst):
     global cnt_lst_images_label
-    # print("Repair Origin List: {}".format(origin_lst))
     unique_lst = remove_duplicates(origin_lst)
-    # print("Repair Cleaned List #1: {}".format(unique_lst))
     unique_lst = remove_label_01(unique_lst)
-    # print("Repair Cleaned List #2: {}".format(unique_lst))
     unique_lst = remove_label_empty(unique_lst)
-    # print("Repair Cleaned List #3: {}".format(unique_lst))
     unique_lst = remove_label_alpha(unique_lst)
-    # print("Repair Cleaned List #4: {}".format(unique_lst))
     unique_lst = sorted(unique_lst, key=int)
-    # print("Repair Cleaned List #5: {}".format(unique_lst))
 
     return unique_lst
 
 
 def remove_duplicates(lst):
     """ If given list contains any duplicates, remove and return cleaned list """
-    set_of_elems = set()
+    global log_sum
+    set_of_elems = []
     for elem in lst:
         if elem not in set_of_elems:
-            set_of_elems.add(elem)
+            set_of_elems.append(elem)
+        else:
+            log_sum['rdlbl'] = log_sum['rdlbl'] + 1
 
     return set_of_elems
 
 
 def remove_label_01(lst):
+    global log_sum
     if "01" in lst:
+        log_sum['r01lbl'] = log_sum['r01lbl'] + 1
         lst.remove("01")
     return lst
 
 
 def remove_label_empty(lst):
+    global log_sum
     if "" in lst:
+        log_sum['reptlbl'] = log_sum['reptlbl'] + 1
         lst.remove("")
     return lst
 
 
 def remove_label_alpha(lst):
-    clean_lst = set()
+    global log_sum
+    clean_lst = []
     for x in lst:
         if not x.startswith("Image") \
                 and not x.startswith("Top") \
                 and not x.startswith("Bottom") \
                 and not x.startswith("Right") \
                 and not x.startswith("Left") \
-                and not x.startswith("Model"):
-            clean_lst.add(x)
+                and not x.startswith("Model") \
+                and not x.startswith("Main"):
+            clean_lst.append(x)
+        else:
+            log_sum['ralphalbl'] = log_sum['ralphalbl'] + 1
     return clean_lst
 
 
@@ -290,7 +382,6 @@ def remove_image_date(lst):
         try:
             # try to convert the date string into a date object
             x_date = datetime.strptime(x_lst[5], '%Y-%m-%d').date()
-            # print("date object: {}".format(x_date))
         except ValueError:
             # the conversation failed, must be a mal-formatted date or missing date
             log_sum['tdcf'] = log_sum['tdcf'] + 1
@@ -299,14 +390,11 @@ def remove_image_date(lst):
         if x_date not in date_obj_lst:
             date_obj_lst.add(x_date)
 
-    # print("All diff dates found: {}".format(date_obj_lst))
     # get the newest date from the date_obj_lst
     if len(date_obj_lst) > 0:
         newest_date_obj = functools.reduce(compare_lst, date_obj_lst)
-        # print("Newest Date Obj: {}".format(newest_date_obj))
         # convert date object to string
         newest_date_str = newest_date_obj.strftime('%Y-%m-%d')
-        # print("Newest Date String: {}".format(newest_date_str))
         for val_1 in lst:
             if val_1.find(newest_date_str) != -1:
                 clean_lst.append(val_1)
@@ -335,12 +423,6 @@ def pad_images_to_label_count(img_lst, lbl_lst):
     cnt_lbl_lst = len(lbl_lst)
     cnt_img_lst = len(img_lst)
 
-    print("Origin Label List Count: {}".format(cnt_lbl_lst))
-    print("Origin Label List: {}".format(lbl_lst))
-    print("Origin Image List Count: {}".format(cnt_img_lst))
-    print("Origin Image List: \n")
-    print(*img_lst, sep='\n')
-
     # Both list need to have items with numbers in this sequence: 02, 03, 04, 05, 06, 07, 08
     if cnt_img_lst == cnt_lbl_lst:
         # if the list count are equal, nothing to do
@@ -355,17 +437,20 @@ def pad_images_to_label_count(img_lst, lbl_lst):
             except ValueError:
                 lbl_lst.append(y)
         log_sum['llb'] = log_sum['llb'] + 1
-        # print("Full List: {}".format(lbl_lst))
 
     if 0 < cnt_img_lst < 7:
         # if we have less then 7 images, we need to bolster
-        for x in lbl_lst:
+        for x in range(0, len(lbl_lst)):
             x_first = img_lst[0]
             x_lst = x_first.split("_")
-            x_ext = x_lst[1].split(".")
-            clean_img_lst.append(x_lst[0] + '_' + x + '.' + x_ext[1])
+
+            if len(x_lst) > 2:
+                x_ext = x_lst[2].split(".")
+            else:
+                x_ext = x_lst[1].split(".")
+
+            clean_img_lst.append(x_lst[0] + '_' + str(x) + '.' + x_ext[1])
         log_sum['ilb'] = log_sum['ilb'] + 1
-        # print(*clean_img_lst, sep="\n")
     else:
         log_sum['imau'] = log_sum['imau'] + 1
         return [img_lst, lbl_lst]
@@ -379,14 +464,11 @@ def split_img_diff_skus(img_lst):
     clean_split_lst = []
     if len(img_lst) > 0:
         x_lst = img_lst[0].split('-')
-        # print(*x_lst, sep='\n')
         y_lst = x_lst[-1].split('_')
-        # print(*y_lst, sep='\n')
         if len(y_lst) > 0:
             sku_model = y_lst[0]
         else:
             return img_lst
-        print("Sku Model Id: {}".format(sku_model))
     else:
         return img_lst
 
@@ -395,11 +477,6 @@ def split_img_diff_skus(img_lst):
             clean_split_lst.append(img_url)
         else:
             clean_img_lst.append(img_url)
-
-    print("Img List: ")
-    print(*clean_img_lst, sep="\n")
-    print("Img Split List: ")
-    print(*clean_split_lst, sep="\n")
 
     if len(clean_split_lst) > 0:
         clean_lst.append(clean_img_lst)
@@ -414,6 +491,31 @@ def compare_lst(a, b):
         return a
     else:
         return b
+
+
+def get_run_time(ti, end):
+    global start_milli_sec
+    if not end:
+        start_milli_sec = ti
+    else:
+        return '{:.2f}'.format((ti - start_milli_sec))
+
+
+def handle_log_sum():
+    # save log sum to file
+    # print log sum to screen
+    cnt = 1
+    lst_save = []
+    now = datetime.now()
+    date_time = now.strftime("%m_%d_%Y_%H_%M_%S")
+    file_name = log_data + log_file + date_time
+    for key, value in log_abbrv.items():
+        print("{}.) {}: {}".format(cnt, value, log_sum[key]))
+        cnt += 1
+        lst_save.append(value + ': ' + str(log_sum[key]))
+
+    lst_out = [",".join(lst_save)]
+    save_json(lst_out, file_name)
 
 
 # Press the green button in the gutter to run the script.
