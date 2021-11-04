@@ -1,6 +1,14 @@
-# @title:   Image Junk Sniffer
-# @author:  Andreas Nagel / KEH IT
-# @date:    09/07/2021
+#!/usr/bin/env python
+__author__ = "Big Black Bear Coder / Andreas Nagel / KEH IT"
+__copyright__ = "Copyright 2021, Image Junk Snooper"
+__credits__ = []
+__license__ = "MIT"
+__version__ = "0.0.2"
+__maintainer__ = "Big Black Bear Coder"
+__email__ = "anagel@keh.com"
+__status__ = "Development"
+__package__ = "image_junk_snooper"
+__github__ = "https://github.com/arnagel/image_junk_snooper.git"
 
 # Imports
 import sys
@@ -52,10 +60,11 @@ log_abbrv = {
     'imau': 'Images Missing All URLS',
     'tcis': 'Total Cleaned Items Saved',
     'msg': 'Message(s)',
-    'trt': 'Total Run Time'}
+    'trt': 'Total Run Time',
+    'ril': 'Total Images Removed with Shortcut.lnk'}
 log_sum = {'tfi': 0, 'tjf': 0, 'tjrf': 0, 'td': 0, 'tmrv': 0, 'tdcf': 0, 'rip': 0, 'llb': 0, 'ilb': 0, 'imau': 0,
            'ipf': '', 'opf': '', 'tjv': 0, 'msg': '', 'rdlbl': 0, 'r01lbl': 0, 'reptlbl': 0, 'ralphalbl': 0,
-           'tcis': 0, 'trt': 0}
+           'tcis': 0, 'trt': 0, 'ril': 0}
 
 
 def main(args):
@@ -79,7 +88,11 @@ def main(args):
     save_json(lst_dups, file_name)
     lst_final_cleaned = []
     # Loop over the list
-    for item in lst_dups:
+    for idx, item in enumerate(lst_dups):
+        # Clean up base, small, and thumbnail image links.
+        lst_dups[idx]['base_image'] = remove_image_with_lnk_ext(item['base_image'])
+        lst_dups[idx]['small_image'] = remove_image_with_lnk_ext(item['small_image'])
+        lst_dups[idx]['thumbnail_image'] = remove_image_with_lnk_ext(item['thumbnail_image'])
         # remove label duplicates
         lst_clean_add_img_lbl = remove_duplicates(item['additional_images_label'].split(','))
         lst_clean_add_img_lbl = remove_label_01(lst_clean_add_img_lbl)
@@ -414,6 +427,17 @@ def remove_image_parentheses(lst):
             clean_lst.add(val)
 
     return clean_lst
+
+
+def remove_image_with_lnk_ext(img):
+    global log_sum
+    res = re.search(r'- Shortcut.lnk', img)
+    if res:
+        log_sum['ril'] += 1
+        pprint.pprint(img)
+        img = img.replace(" - Shortcut.lnk", ".jpg", 1)
+        pprint.pprint(img)
+    return img
 
 
 def pad_images_to_label_count(img_lst, lbl_lst):
