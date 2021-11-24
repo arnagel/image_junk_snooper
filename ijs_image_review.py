@@ -21,16 +21,13 @@ import sys
 from typing import Union
 from datetime import datetime, date
 # Classes
-from classes.ijs_folder import IJSFolder
 
 config_path_file = './config/config.ini'
-in_data = ''
-tmp_data = ''
-log_data = ""
+user_output_file_name = ''
+output_file_name = ''
 input_file = ''
-tmp_file = ''
 csv_ext = ''
-log_file_name = log_data + 'image_junk_snooper_' + str(date.today()) + '.log'
+log_file_name = ''
 vm_url = ''
 vm_bucket = ''
 vm_parent_folders = []
@@ -42,30 +39,45 @@ def main(args):
     get_args(args)
 
 
-def get_config():
+def get_config() -> None:
+    global log_file_name
+    global vm_url
+    global vm_bucket
+    global vm_parent_folders
+    global output_file_name
     config = configparser.ConfigParser()
-    config_sections = config.sections()
     config.read(config_path_file)
-    pprint.pprint(f"Config Section: {config_sections}")
+    # pprint.pprint(f"Config Section: {config_sections}")
+    log_data = config['Log_Setup']['log_data']
+    log_name = config['Log_Setup']['log_file_name']
+    log_ext = config['Log_Setup']['log_file_ext']
+    log_file_name = log_data + log_name + str(date.today()) + log_ext
+    # pprint.pprint(f"Log File Name: {log_file_name}")
+    vm_url = config['VM_Access_Setup']['vm_url']
+    vm_bucket = config['VM_Access_Setup']['vm_bucket']
+    vm_parent_folders = config['VM_Access_Setup']['vm_parent_folders']
+    logging.info(f"These are the parent folder we need to process: {vm_parent_folders}")
+    # pprint.pprint(f"VM url: {vm_url} / Bucket: {vm_bucket} / Folders: {vm_parent_folders}")
+    output_folder = config['Output_File_Setup']['output_folder']
+    output_ext = config['Output_File_Setup']['output_ext']
+    output_file_name = output_folder + user_output_file_name + str(date.today()) + output_ext
+    # pprint.pprint(f"Output File Name: {output_file_name}")
 
 
 def get_args(argv):
-    global input_file
-    global trip_name
+    global user_output_file_name
 
     try:
-        opts, args = getopt.getopt(argv, "ht:i:", ["trip=", "ifile="])
+        opts, args = getopt.getopt(argv, "ht:o:", ["ofile="])
     except getopt.GetoptError:
-        print('main.py -t <trip_name> -i <input_file>')
+        print('main.py -i <output_file>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('main.py -t <trip_name>  -i <input_file>')
+            print('main.py -o <output_file>')
             sys.exit()
-        elif opt in ("-t", "--trip"):
-            trip_name = arg
-        elif opt in ("-i", "--ifile"):
-            input_file = arg
+        elif opt in ("-o", "--ofile"):
+            user_output_file_name = arg
 
 
 # Press the green button in the gutter to run the script.

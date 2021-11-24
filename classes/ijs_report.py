@@ -20,7 +20,11 @@ from typing import Union
 from datetime import datetime
 
 
-class IJSCsv:
+class IJSReport:
 
     def __init__(self):
         pass
+
+    def create_file_report(self, url_path_file):
+        pass
+
