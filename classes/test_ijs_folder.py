@@ -22,16 +22,20 @@ class TestIjsFolder(unittest.TestCase):
         pass
 
     def test_get_folder_content(self):
-        url = "D:\Projects\keh-photos-local\\"
-        path = 'media\\'
+        # start_folder = 'D:\\Projects\\keh-photos-local\\media\\'
+        start_folder = 'D:\\Projects\\keh-photos-local\\uploads\\'
         msg = "Did not get a dictionary returned"
-        self.assertIsInstance(self.ijs_folder.get_folder_content(url, path), dict, msg)
+        self.assertIsInstance(self.ijs_folder.get_folder_content(start_folder), dict, msg)
+
+    def test_get_folder_content_old(self):
+        path = 'D:\\Projects\\keh-photos-local\\media\\'
+        msg = "Did not get a dictionary returned"
+        self.assertIsInstance(self.ijs_folder.get_folder_content(path), dict, msg)
 
     def test_get_folder_content_fail(self):
-        url = "D:\Projects\keh-photos-local\\"
-        path = 'bear\\'
+        path = 'D:\\Projects\\keh-photos-local\\bear\\'
         msg = "The folder should not exist"
-        self.assertFalse(self.ijs_folder.get_folder_content(url, path), msg)
+        self.assertFalse(self.ijs_folder.get_folder_content(path), msg)
 
 
 if __name__ == '__main__':

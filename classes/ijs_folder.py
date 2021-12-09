@@ -15,34 +15,37 @@ __github__ = 'https://github.com/arnagel/image_junk_snooper.git'
 # imports
 import logging
 import os
+import pprint
 
 
 class IJSFolder:
 
-    def __init__(self):
-        pass
+    def get_folder_content(self, start_folder) -> dict:
+        dict_out = {'folders': [start_folder], 'files': []}
+        for root, dirs, files in os.walk(start_folder):
+            for name in files:
+                dict_out['files'].append(os.path.join(root, name))
+            for name in dirs:
+                dict_out['folders'].append(os.path.join(root, name))
+        return dict_out
 
-    def get_folder_content(self, url, path) -> dict | bool:
-        folder_location = url + path
-        if os.path.isdir(folder_location):
+    def get_folder_content_old(self, path) -> dict:
+        if os.path.isdir(path):
             dic_out = {}
             lst_files = []
             lst_folders = []
-            for item in os.scandir(folder_location):
+            for item in os.scandir(path):
                 if item.is_file():
                     lst_files.append(item.name)
                 elif item.is_dir():
                     lst_folders.append(item.name)
                 else:
-                    logging.info(f"Unknown item in folder: {folder_location} - {item.name}")
+                    logging.error(f"Unknown item in folder: {path} - {item.name}")
 
-            logging.info(f"[type:file, path:{path}, cnt:{len(lst_files)}]")
-            logging.info(f"[type:folder, path:{path}, cnt:{len(lst_folders)}]")
-            dic_out['files'] = lst_files
-            dic_out['folders'] = lst_folders
-            return dic_out
+            # logging.info(f"path:{path}, type:folder:{len(lst_folders)} - type:file:{len(lst_files)}")
+            return {'files': lst_files, 'folders': lst_folders}
         else:
-            logging.error(f"This folder does not exist or cannot be accessed: {folder_location}")
-            return False
+            logging.error(f"This folder does not exist or cannot be accessed: {path}")
+            return {'error': f"This folder does not exist or cannot be accessed: {path}"}
 
 

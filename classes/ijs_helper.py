@@ -14,17 +14,10 @@ __github__ = 'https://github.com/arnagel/image_junk_snooper.git'
 
 # imports
 import logging
-import pprint
 import re
-import sys
-from typing import Union
-from datetime import datetime
 
 
 class IJSHelper:
-
-    def __init__(self):
-        pass
 
     def evaluate_model_item(self, file_name) -> dict:
         """different formats of model/item/barcode filename:
@@ -36,20 +29,6 @@ class IJSHelper:
         Split by underscore (_)
 
         item #1a = numeric with hyphen
-
-        item #2a = 01 - 20
-        item #2b = has x
-        item #2c = has single digit
-        item #2d = numeric len >= 6
-        item #2e = has ( and )
-
-        [item #3a = numeric, single digit]
-        [item #3b = alpha]
-        [item #3c = has x]
-
-        [item #4a = numeric, single digit]
-
-        [item #5a = numeric, single digit]
 
         1780834-1958332_08.jpg: model_id-item_id_sequence
         214510-2305437_05.jpg: model_id-item_id_sequence
@@ -75,30 +54,43 @@ class IJSHelper:
         dict_out = {}
         if file_name:
             split_period = file_name.split('.')
-            pprint.pprint(f"Period Split: :{split_period}")
+            # logging.debug(f"Period Split: :{split_period}")
             len_period = len(split_period)
-            if len_period <= 1 or len_period > 2:
+            if len_period < 1 or len_period > 2:
                 dict_out["error"] = file_name
+                logging.error(f"Period split error: :{dict_out}")
                 return dict_out
             """We use only item 0 from the returned period list"""
             name = split_period[0]
             """Underscore split"""
             split_name = name.split('_')
-            pprint.pprint(f"Underscore Split: :{split_name}")
+            # logging.debug(f"Underscore Split: :{split_name}")
 
             """Evaluate the first item in the return underscore list"""
-            dict_name = self.eval_item_1(split_name[0])
-            dict_out.update(dict_name)
-            dict_name = self.eval_item_2(split_name[1])
-            dict_out.update(dict_name)
+            if self.index_in_list(split_name, 0):
+                dict_name = self.eval_item_1(split_name[0])
+                dict_out.update(dict_name)
+            if self.index_in_list(split_name, 1):
+                dict_name = self.eval_item_2(split_name[1])
+                dict_out.update(dict_name)
+            if self.index_in_list(split_name, 2):
+                dict_name = self.eval_item_3(split_name[2])
+                dict_out.update(dict_name)
+            if self.index_in_list(split_name, 3):
+                dict_name = self.eval_item_4(split_name[3])
+                dict_out.update(dict_name)
+            if self.index_in_list(split_name, 4):
+                dict_name = self.eval_item_5(split_name[4])
+                dict_out.update(dict_name)
 
             if 'error' in dict_out:
-                pprint.pprint(f"Eval model item: :{dict_out}")
+                logging.error(f"Eval model items with error: :{dict_out}")
                 return dict_out
 
-            pprint.pprint(f"Eval model item: :{dict_out}")
+            # logging.debug(f"Eval model item: :{dict_out}")
             return dict_out
         else:
+            logging.error(f"Only errors, no valid file name: :{dict_out}")
             dict_out["error"] = file_name
             return dict_out
 
@@ -110,7 +102,7 @@ class IJSHelper:
         """
         """check if we have a hyphen in the name"""
         f_str = "-"
-        dict_item = {}
+        dict_out = {}
         if f_str not in name:
             """No hyphen 
             item #1b = numeric len > 10
@@ -120,32 +112,37 @@ class IJSHelper:
             if name.isnumeric():
                 if len_name > 10:
                     """Barcode"""
-                    dict_item["barcode"] = name
+                    dict_out["barcode"] = name
                 elif self.check_id(name):
                     """model_id"""
-                    dict_item["model_id"] = name
+                    dict_out["model_id"] = name
                 else:
-                    dict_item["error"] = name
+                    dict_out["error"] = name
             elif name.isalnum():
                 """We have something like model23455"""
                 temp = re.compile("([a-zA-Z]+)([0-9]+)")
-                res = temp.match(name).groups()
-                dict_item["model_id"] = res[1]
+                try:
+                    res = temp.match(name).groups()
+                    dict_out["model_id"] = res[1]
+                except Exception as e:
+                    logging.error(f"Error: {str(e)}")
+                    dict_out["error"] = name
             elif isinstance(name, str):
                 """nothing we can use"""
-                dict_item["error"] = name
+                dict_out["error"] = name
         else:
             """We have a hyphen and need to split"""
             split_hyphen = name.split('-')
             if self.check_id(split_hyphen[0]):
-                dict_item["model_id"] = split_hyphen[0]
+                dict_out["model_id"] = split_hyphen[0]
             else:
-                dict_item["error"] = split_hyphen[0]
+                dict_out["error"] = split_hyphen[0]
             if self.check_id(split_hyphen[1]):
-                dict_item["item_id"] = split_hyphen[1]
+                dict_out["item_id"] = split_hyphen[1]
             else:
-                dict_item["error"] = split_hyphen[1]
-        return dict_item
+                dict_out["error"] = split_hyphen[1]
+        # logging.debug(f"Item 1: {dict_out}")
+        return dict_out
 
     def eval_item_2(self, name) -> dict:
         """
@@ -158,41 +155,72 @@ class IJSHelper:
         x_str = "x"
         bracket_str = "("
         if x_str in name:
-            pprint.pprint(f"Found x: {name}")
             dict_out = self.get_height_width(name)
         elif bracket_str in name:
-            pprint.pprint(f"Found brackets: {name}")
             dict_out = self.get_sequence_copy(name)
         elif len(name) > 5:
-            pprint.pprint(f"Found model id: {name}")
             if self.check_id(name):
                 dict_out['model_id'] = name
         elif int(name) in range(0, 99):
-            pprint.pprint(f"Found sequence: {name}")
-            dict_out = {'sequence': name}
+            dict_out['sequence'] = name
         else:
-            dict_out = {"error": f"No match for: {name}"}
-
-        pprint.pprint(f"Dict Out: {dict_out}")
-
+            dict_out["error"] = f"No match for: {name}"
+        # logging.debug(f"Item 2: {dict_out}")
         return dict_out
 
+    def eval_item_3(self, name) -> dict:
+        """
+        [item #3a = numeric, single digit]
+        [item #3b = alpha]
+        [item #3c = has x]"""
+        dict_out = {}
+        x_str = "x"
+        if x_str in name:
+            dict_out = self.get_height_width(name)
+        elif name.isdigit() and int(name) in range(0, 99):
+            dict_out['copy'] = name
+        elif name.isalpha():
+            dict_out['OEM'] = name
+        else:
+            dict_out["error"] = f"No match for: {name}"
+        # logging.debug(f"Item 3: {dict_out}")
+        return dict_out
 
+    def eval_item_4(self, name) -> dict:
+        """  [item #4a = numeric, single digit]"""
+        dict_out = {}
+        if name.isdigit() and int(name) in range(0, 99):
+            dict_out['copy_pos_4'] = name
+        else:
+            dict_out["error"] = f"No match for: {name}"
+        # logging.debug(f"Item 4: {dict_out}")
+        return dict_out
 
+    def eval_item_5(self, name) -> dict:
+        """  [item #5a = numeric, single digit]"""
+        dict_out = {}
+        if name.isdigit() and int(name) in range(0, 99):
+            dict_out['copy_pos_5'] = name
+        else:
+            dict_out["error"] = f"No match for: {name}"
+        # logging.debug(f"Item 5: {dict_out}")
+        return dict_out
 
-
-        pass
-
-    def get_sequence_copy(self, str_s_c) -> dict:
-        lst_s_c = str_s_c.split('(')
-        return {'sequence': lst_s_c[0], 'copy': lst_s_c[1].rstrip(')')}
-
-    def get_height_width(self, str_h_w) -> dict:
-        lst_h_w = str_h_w.split('x')
-        return {'height': lst_h_w[0], 'width': lst_h_w[1]}
+    def index_in_list(self, lst, index) -> bool:
+        if index < len(lst):
+            return True
+        return False
 
     def check_id(self, test_id) -> bool:
         len_test_id = len(test_id)
         if 6 <= len_test_id <= 8:
             return True
         return False
+
+    def get_height_width(self, str_h_w) -> dict:
+        lst_h_w = str_h_w.split('x')
+        return {'height': lst_h_w[0], 'width': lst_h_w[1]}
+
+    def get_sequence_copy(self, str_s_c) -> dict:
+        lst_s_c = str_s_c.split('(')
+        return {'sequence': lst_s_c[0], 'copy': lst_s_c[1].rstrip(')')}

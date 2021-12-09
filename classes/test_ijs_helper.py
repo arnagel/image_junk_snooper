@@ -31,7 +31,8 @@ class TestIJSHelper(unittest.TestCase):
                       'model_378836_417x417_1.jpg', 'model341884.jpg', 'model378835_500x500.jpg',
                       'model378461_1_1000x1000.jpg', 'model378307_2_1000x1000_1.jpg', 'model368174_1.jpg']
         msg = 'Evaluation failed'
-        self.assertIsInstance(self.ijs_helper.evaluate_model_item(file_names[3]), dict, msg)
+        for f_n in file_names:
+            self.assertIsInstance(self.ijs_helper.evaluate_model_item(f_n), dict, msg)
 
     def test_eval_item_1(self):
         # file_name = '33'
@@ -48,17 +49,40 @@ class TestIJSHelper(unittest.TestCase):
     def test_eval_item_2(self):
         # file_name = '08'      # sequence
         # file_name = '03(1)'   # sequence(copy)
-        # file_name = '300x300' # Height x Width
+        file_name = '300x300' # Height x Width
         # file_name = '1'       # sequence
-        file_name = '100'       # sequence
+        # file_name = '100'       # sequence
         # file_name = '378836'  # model_id
 
         msg = 'Item 2 Evaluation failed'
         self.assertIsInstance(self.ijs_helper.eval_item_2(file_name), dict, msg)
 
+    def test_eval_item_3(self):
+        file_name = 'MFG'       # OEM
+        # file_name = '300x300'   # Height x Width
+        # file_name = '1'         # copy
+        # file_name = '100'       # copy
+
+        msg = 'Item 3 Evaluation failed'
+        self.assertIsInstance(self.ijs_helper.eval_item_3(file_name), dict, msg)
+
+    def test_eval_item_4(self):
+        file_name = '4'         # copy
+        # file_name = '100'       # copy
+
+        msg = 'Item 4 Evaluation failed'
+        self.assertIsInstance(self.ijs_helper.eval_item_4(file_name), dict, msg)
+
+    def test_eval_item_5(self):
+        # file_name = '5'         # copy
+        file_name = '100'       # copy
+
+        msg = 'Item 5 Evaluation failed'
+        self.assertIsInstance(self.ijs_helper.eval_item_5(file_name), dict, msg)
+
     def test_check_id(self):
-        test_id = '37883'         # fail
-        # test_id = '378836'      # pass
+        # test_id = '37883'         # fail
+        test_id = '378836'      # pass
         # test_id = '3788360'     # pass
         # test_id = '37883601'    # pass
         # test_id = '137883601'   # fail

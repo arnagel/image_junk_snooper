@@ -4,9 +4,11 @@ __copyright__ = "Copyright 2021, image_junk_snooper project"
 __license__ = ""
 __version__ = "0.0.1"
 
+import pprint
 import unittest
 import logging
 from datetime import date
+import tracemalloc
 
 
 class TestIJSImage(unittest.TestCase):
@@ -22,6 +24,7 @@ class TestIJSImage(unittest.TestCase):
         pass
 
     def test_check_image_content(self):
+        tracemalloc.start()
         url = "D:/Projects/keh-photos-local/"
         path = 'media/'
         msg = "Cannot check files"
@@ -29,6 +32,9 @@ class TestIJSImage(unittest.TestCase):
         url_path_file = url + path + file
         msg = "Cannot get file content information"
         self.assertIsInstance(self.ijs_image.check_image_content(url_path_file), dict, msg)
+        # snapshot = tracemalloc.take_snapshot()
+        # for stat in snapshot.statistics("lineno"):
+        #    pprint.pprint(stat)
 
     def test_check_image_content_fail(self):
         url = "D:/Projects/keh-photos-local/"
