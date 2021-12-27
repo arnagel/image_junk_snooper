@@ -15,9 +15,10 @@ __github__ = 'https://github.com/arnagel/image_junk_snooper.git'
 # imports
 import logging
 import re
+import datetime
 
 
-class IJSHelper:
+class IJSHelper(object):
 
     def evaluate_model_item(self, file_name) -> dict:
         """different formats of model/item/barcode filename:
@@ -54,7 +55,6 @@ class IJSHelper:
         dict_out = {}
         if file_name:
             split_period = file_name.split('.')
-            # logging.debug(f"Period Split: :{split_period}")
             len_period = len(split_period)
             if len_period < 1 or len_period > 2:
                 dict_out["error"] = file_name
@@ -64,34 +64,27 @@ class IJSHelper:
             name = split_period[0]
             """Underscore split"""
             split_name = name.split('_')
-            # logging.debug(f"Underscore Split: :{split_name}")
-
             """Evaluate the first item in the return underscore list"""
             if self.index_in_list(split_name, 0):
-                dict_name = self.eval_item_1(split_name[0])
-                dict_out.update(dict_name)
+                dict_out.update(self.eval_item_1(split_name[0]))
             if self.index_in_list(split_name, 1):
-                dict_name = self.eval_item_2(split_name[1])
-                dict_out.update(dict_name)
+                dict_out.update(self.eval_item_2(split_name[1]))
             if self.index_in_list(split_name, 2):
-                dict_name = self.eval_item_3(split_name[2])
-                dict_out.update(dict_name)
+                dict_out.update(self.eval_item_3(split_name[2]))
             if self.index_in_list(split_name, 3):
-                dict_name = self.eval_item_4(split_name[3])
-                dict_out.update(dict_name)
+                dict_out.update(self.eval_item_4(split_name[3]))
             if self.index_in_list(split_name, 4):
-                dict_name = self.eval_item_5(split_name[4])
-                dict_out.update(dict_name)
+                dict_out.update(self.eval_item_5(split_name[4]))
 
             if 'error' in dict_out:
                 logging.error(f"Eval model items with error: :{dict_out}")
                 return dict_out
 
-            # logging.debug(f"Eval model item: :{dict_out}")
+            logging.debug(f"Eval model item: :{dict_out}")
             return dict_out
         else:
             logging.error(f"Only errors, no valid file name: :{dict_out}")
-            dict_out["error"] = file_name
+            dict_out["error"] = f"Only errors, no valid file name: :{file_name}"
             return dict_out
 
     def eval_item_1(self, name) -> dict:
@@ -102,14 +95,16 @@ class IJSHelper:
         """
         """check if we have a hyphen in the name"""
         f_str = "-"
-        dict_out = {}
+        dict_out = {'model_id': '', 'item_id': '', 'barcode': '', 'error': ''}
+        logging.debug(f"Eval Item 1: {name}")
         if f_str not in name:
             """No hyphen 
             item #1b = numeric len > 10
             item #1c = alphanumeric
             item #1d = alpha"""
             len_name = len(name)
-            if name.isnumeric():
+            logging.debug(f"No hyphen: {name}")
+            if name.isdigit():
                 if len_name > 10:
                     """Barcode"""
                     dict_out["barcode"] = name
@@ -117,31 +112,31 @@ class IJSHelper:
                     """model_id"""
                     dict_out["model_id"] = name
                 else:
-                    dict_out["error"] = name
-            elif name.isalnum():
-                """We have something like model23455"""
-                temp = re.compile("([a-zA-Z]+)([0-9]+)")
+                    dict_out["error"] = f"| Not a valid numeric item: {name} "
+            elif True in [char.isdigit() for char in name]:
                 try:
+                    """We have something like model23455"""
+                    temp = re.compile("([a-zA-Z]+)([0-9]+)")
                     res = temp.match(name).groups()
                     dict_out["model_id"] = res[1]
                 except Exception as e:
-                    logging.error(f"Error: {str(e)}")
-                    dict_out["error"] = name
+                    logging.error(f"| Error Regex Compile: {str(e)}")
+                    dict_out["error"] += f"| Failed the regex:{name}"
             elif isinstance(name, str):
                 """nothing we can use"""
-                dict_out["error"] = name
+                dict_out["error"] += f"| Nothing we can use:{name}"
         else:
             """We have a hyphen and need to split"""
+            logging.debug(f"Hyphen present: {name}")
             split_hyphen = name.split('-')
             if self.check_id(split_hyphen[0]):
                 dict_out["model_id"] = split_hyphen[0]
             else:
-                dict_out["error"] = split_hyphen[0]
+                dict_out["error"] += f"| Hyphen Split Failed for model id:{split_hyphen[0]}"
             if self.check_id(split_hyphen[1]):
                 dict_out["item_id"] = split_hyphen[1]
             else:
-                dict_out["error"] = split_hyphen[1]
-        # logging.debug(f"Item 1: {dict_out}")
+                dict_out["error"] += f"| Hyphen Split Failed for item id:{split_hyphen[1]}"
         return dict_out
 
     def eval_item_2(self, name) -> dict:
@@ -151,21 +146,20 @@ class IJSHelper:
         item  # 2c = has single digit
         item  # 2d = numeric len >= 6
         item  # 2e = has ( and ) """
-        dict_out = {}
+        dict_out = {'error': ''}
         x_str = "x"
         bracket_str = "("
         if x_str in name:
             dict_out = self.get_height_width(name)
         elif bracket_str in name:
             dict_out = self.get_sequence_copy(name)
-        elif len(name) > 5:
+        elif name.isnumeric() and len(name) > 5:
             if self.check_id(name):
                 dict_out['model_id'] = name
-        elif int(name) in range(0, 99):
+        elif name.isnumeric() and int(name) in range(0, 99):
             dict_out['sequence'] = name
         else:
-            dict_out["error"] = f"No match for: {name}"
-        # logging.debug(f"Item 2: {dict_out}")
+            dict_out["error"] = f"| No match for: {name}"
         return dict_out
 
     def eval_item_3(self, name) -> dict:
@@ -173,7 +167,7 @@ class IJSHelper:
         [item #3a = numeric, single digit]
         [item #3b = alpha]
         [item #3c = has x]"""
-        dict_out = {}
+        dict_out = {'error': ''}
         x_str = "x"
         if x_str in name:
             dict_out = self.get_height_width(name)
@@ -182,27 +176,27 @@ class IJSHelper:
         elif name.isalpha():
             dict_out['OEM'] = name
         else:
-            dict_out["error"] = f"No match for: {name}"
+            dict_out["error"] = f"| No match for: {name}"
         # logging.debug(f"Item 3: {dict_out}")
         return dict_out
 
     def eval_item_4(self, name) -> dict:
         """  [item #4a = numeric, single digit]"""
-        dict_out = {}
+        dict_out = {'error': ''}
         if name.isdigit() and int(name) in range(0, 99):
             dict_out['copy_pos_4'] = name
         else:
-            dict_out["error"] = f"No match for: {name}"
+            dict_out["error"] = f"| No match for: {name}"
         # logging.debug(f"Item 4: {dict_out}")
         return dict_out
 
     def eval_item_5(self, name) -> dict:
         """  [item #5a = numeric, single digit]"""
-        dict_out = {}
+        dict_out = {'error': ''}
         if name.isdigit() and int(name) in range(0, 99):
             dict_out['copy_pos_5'] = name
         else:
-            dict_out["error"] = f"No match for: {name}"
+            dict_out["error"] = f"| No match for: {name}"
         # logging.debug(f"Item 5: {dict_out}")
         return dict_out
 
@@ -224,3 +218,7 @@ class IJSHelper:
     def get_sequence_copy(self, str_s_c) -> dict:
         lst_s_c = str_s_c.split('(')
         return {'sequence': lst_s_c[0], 'copy': lst_s_c[1].rstrip(')')}
+
+    def convert_Unix_to_Human(self, u_time, tz_offset=0, d_format='%Y-%m-%d %H:%M:%S') -> str:
+        dt_jst_aware = datetime.datetime.fromtimestamp(u_time, datetime.timezone(datetime.timedelta(hours=tz_offset)))
+        return dt_jst_aware.strftime(d_format)

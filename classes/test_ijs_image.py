@@ -27,9 +27,10 @@ class TestIJSImage(unittest.TestCase):
         tracemalloc.start()
         url = "D:/Projects/keh-photos-local/"
         path = 'media/'
-        msg = "Cannot check files"
-        file = '10000232238593_01.jpg'
-        url_path_file = url + path + file
+        # file = '10000232238593_01.jpg'
+        # url_path_file = url + path + file
+        file = 'C:/Users/anagel.LAPTOP-8N7VRN57/OneDrive/Pictures/KEH/ITPC Image Standard/IPTC-PhotometadataRef-Std2021.1.jpg'
+        url_path_file = file
         msg = "Cannot get file content information"
         self.assertIsInstance(self.ijs_image.check_image_content(url_path_file), dict, msg)
         # snapshot = tracemalloc.take_snapshot()
@@ -44,6 +45,30 @@ class TestIJSImage(unittest.TestCase):
         url_path_file = url + path + file
         msg = "Should return false, and it returns something else"
         self.assertFalse(self.ijs_image.check_image_content(url_path_file), msg)
+
+    def test_test_base_64_convert(self):
+        tracemalloc.start()
+        url = "D:/Projects/keh-photos-local/"
+        path = 'media/'
+        file = '10000232238593_01.jpg'
+        msg = "Cannot convert image to base64"
+        url_path_file = url + path + file
+        msg = "Cannot get file content information"
+        self.assertTrue(self.ijs_image.test_base64_convert(url_path_file), msg)
+
+    def test_getITPC_meta_data(self):
+        lst_files = ['C:/Users/anagel.LAPTOP-8N7VRN57/OneDrive/Pictures/KEH/ITPC Image Standard/IPTC-PhotometadataRef-Std2021.1.jpg',
+                     "D:/Projects/keh-photos-local/media/10000232238593_01.jpg"]
+        msg = "Cannot get the ITPC meta data"
+        for idx, val in enumerate(lst_files):
+            self.assertIsInstance(self.ijs_image.get_ITPC_meta_data(val), dict, msg)
+
+    def test_getITPC_data(self):
+        lst_files = ['C:/Users/anagel.LAPTOP-8N7VRN57/OneDrive/Pictures/KEH/ITPC Image Standard/IPTC-PhotometadataRef-Std2021.1.jpg'
+            , "D:/Projects/keh-photos-local/media/10000232238593_01.jpg"]
+        msg = "Cannot get the ITPC meta data"
+        for idx, val in enumerate(lst_files):
+            self.assertIsInstance(self.ijs_image.get_ITPC_data(val), dict, msg)
 
 
 if __name__ == '__main__':

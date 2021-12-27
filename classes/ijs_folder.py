@@ -15,7 +15,6 @@ __github__ = 'https://github.com/arnagel/image_junk_snooper.git'
 # imports
 import logging
 import os
-import pprint
 
 
 class IJSFolder:

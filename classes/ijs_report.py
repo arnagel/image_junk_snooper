@@ -15,17 +15,27 @@ __github__ = 'https://github.com/arnagel/image_junk_snooper.git'
 # imports
 import logging
 import csv
-import pprint
-import sys
-from typing import Union
-from datetime import datetime
+import os
 from classes.ijs_file import IJSFile
+from classes.ijs_helper import IJSHelper
 
 
-class IJSReport(IJSFile):
+class IJSReport(IJSFile, IJSHelper):
 
     def __init__(self):
-        self.lst_col_name_file_report = ['APP:file_name',
+        self.lst_col_name_file_report = ['model_id',
+                                         'item_id',
+                                         'barcode',
+                                         'sequence',
+                                         'no_content',
+                                         'base64_error',
+                                         'height',
+                                         'width',
+                                         'OEM',
+                                         'copy',
+                                         'copy_pos_4',
+                                         'copy_pos_5',
+                                         'APP:file_name',
                                          'META:file_size',
                                          'META:creation_date',
                                          'META:last_modified',
@@ -56,29 +66,55 @@ class IJSReport(IJSFile):
                                          'EXIF:Copyright',
                                          'EXIF:XResolution',
                                          'EXIF:Artist',
-                                         'error',
-                                         'not_registered']
+                                         'iptc:title',
+                                         'iptc:description',
+                                         'iptc:headline',
+                                         'iptc:city',
+                                         'iptc:copyright',
+                                         'iptc:country_primary',
+                                         'iptc:country_detail',
+                                         'iptc:creator',
+                                         'iptc:creator_job_title',
+                                         'iptc:credit_line',
+                                         'iptc:date_created',
+                                         'iptc:time_created',
+                                         'iptc:caption_description_writer',
+                                         'iptc:instructions',
+                                         'iptc:intellectual_ genre',
+                                         'iptc:job_identifier',
+                                         'iptc:keywords',
+                                         'iptc:province_state',
+                                         'iptc:source',
+                                         'iptc:subject_code',
+                                         'iptc:sub_location',
+                                         'error']
 
-    def create_file_report(self, path, file_name, file_ext, content):
+    def create_file_report(self, path, file_name, content) -> bool:
         """Open the file and get the file object"""
-        f_obj = self.check_create_open_file(path, file_name, file_ext)
-        if f_obj is False:
-            logging.error("Cannot create file report, file issues")
+        f_obj = self.create_file(path, file_name)
+        if not isinstance(f_obj, object):
+            logging.error("Cannot open file")
             return False
 
         """Create the csv object"""
         csv_dict_writer = csv.DictWriter(f_obj, self.lst_col_name_file_report)
-        """Add the headers to the file"""
-        csv_dict_writer.writeheader()
+        """Write header if the file is empty"""
+        if os.fstat(f_obj.fileno()).st_size < 10:
+            csv_dict_writer.writeheader()
 
         """Loop over the content and place it into the correct position of the csv string"""
-        lst_content = {}
+        lst_content = {'error': ''}
         for key in self.lst_col_name_file_report:
             if key in content:
-                lst_content[key] = content[key]
+                if key == 'META:creation_date' or key == 'META:last_modified':
+                    lst_content[key] = self.convert_Unix_to_Human(content[key], 5, '%m/%d/%Y %H:%M:%S')
+                elif key == 'error':
+                    lst_content[key] += f"{content[key]} | "
+                else:
+                    lst_content[key] = content[key]
             else:
                 lst_content[key] = ''
-                logging.error(f"Cannot find: {key} content")
+                logging.info(f"Cannot find: {key} in content")
 
         """Write the content to the file"""
         csv_dict_writer.writerow(lst_content)
@@ -86,14 +122,4 @@ class IJSReport(IJSFile):
         """Close the file object"""
         f_obj.close()
 
-        return False
-
-# TODO: Get the model and item id, and added to the content object
-# TODO: Convert the timestamp from UNIX to human readable.
-# TODO: Remove the empty line in the csv file
-# TODO: We need to open the same file to add the content.
-
-
-
-
-
+        return True

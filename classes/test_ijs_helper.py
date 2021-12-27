@@ -24,7 +24,8 @@ class TestIJSHelper(unittest.TestCase):
         pass
 
     def test_evaluate_model_item(self):
-        file_names = ['my', 'big_black_bear.coder.jpg', '10000239654683_08.jpg', '33.jpg', '1780834-1958332_08',
+        file_names = ['catalog\\product\\3\\3\\331355-1_300x300.jpg', 'my', 'big_black_bear.coder.jpg',
+                      '10000239654683_08.jpg', '33.jpg', '1780834-1958332_08',
                       '214510-2305437_05.jpg', '381966-3106923_02_MFG.jpg', '386759-3452409_03(1).jpg',
                       '330186-1_300x300.jpg', '330307_1_1000x1000.jpg', '331220_1_1000x1000_1.jpg',
                       '331263-2882_470x313.jpg', '330870_1_1000x1000_1_2.jpg', 'model_378836_417x417.jpg',
@@ -35,30 +36,26 @@ class TestIJSHelper(unittest.TestCase):
             self.assertIsInstance(self.ijs_helper.evaluate_model_item(f_n), dict, msg)
 
     def test_eval_item_1(self):
-        # file_name = '33'
-        file_name = '1780834-1958332'
-        # file_name = '214510-2305437'
-        # file_name = '330186'
-        # file_name = '331263-2882'
-        # file_name = 'model'
-        # file_name = 'model341884'
-        # file_name = '10000239654683'
+        file_name = ['33',
+                     '1780834-1958332',
+                     '214510-2305437',
+                     '330186',
+                     '331263-2882',
+                     'model',
+                     'model341884',
+                     '10000239654683']
         msg = 'Item 1 Evaluation failed'
-        self.assertIsInstance(self.ijs_helper.eval_item_1(file_name), dict, msg)
+        for idx, val in enumerate(file_name):
+            self.assertIsInstance(self.ijs_helper.eval_item_1(val), dict, msg)
 
     def test_eval_item_2(self):
-        # file_name = '08'      # sequence
-        # file_name = '03(1)'   # sequence(copy)
-        file_name = '300x300' # Height x Width
-        # file_name = '1'       # sequence
-        # file_name = '100'       # sequence
-        # file_name = '378836'  # model_id
-
+        lst_file_name = ['08', '03(1)', '300x300', '1', '100', '378836', 'level']
         msg = 'Item 2 Evaluation failed'
-        self.assertIsInstance(self.ijs_helper.eval_item_2(file_name), dict, msg)
+        for idx, value in enumerate(lst_file_name):
+            self.assertIsInstance(self.ijs_helper.eval_item_2(value), dict, msg)
 
     def test_eval_item_3(self):
-        file_name = 'MFG'       # OEM
+        file_name = 'MFG'  # OEM
         # file_name = '300x300'   # Height x Width
         # file_name = '1'         # copy
         # file_name = '100'       # copy
@@ -67,7 +64,7 @@ class TestIJSHelper(unittest.TestCase):
         self.assertIsInstance(self.ijs_helper.eval_item_3(file_name), dict, msg)
 
     def test_eval_item_4(self):
-        file_name = '4'         # copy
+        file_name = '4'  # copy
         # file_name = '100'       # copy
 
         msg = 'Item 4 Evaluation failed'
@@ -75,14 +72,14 @@ class TestIJSHelper(unittest.TestCase):
 
     def test_eval_item_5(self):
         # file_name = '5'         # copy
-        file_name = '100'       # copy
+        file_name = '100'  # copy
 
         msg = 'Item 5 Evaluation failed'
         self.assertIsInstance(self.ijs_helper.eval_item_5(file_name), dict, msg)
 
     def test_check_id(self):
         # test_id = '37883'         # fail
-        test_id = '378836'      # pass
+        test_id = '378836'  # pass
         # test_id = '3788360'     # pass
         # test_id = '37883601'    # pass
         # test_id = '137883601'   # fail
@@ -101,6 +98,14 @@ class TestIJSHelper(unittest.TestCase):
 
         msg = 'Getting sequence and copy failed'
         self.assertIsInstance(self.ijs_helper.get_sequence_copy(name), dict, msg)
+
+    def test_convert_Unix_to_Human(self):
+        u_time = 1637624065.9839623
+        tz_offset = -5
+        d_format = '%m/%d/%Y %H:%M:%S %f'
+        msg = "Failed to convert unix to human time"
+
+        self.assertIsInstance(self.ijs_helper.convert_Unix_to_Human(u_time, tz_offset, d_format), str, msg)
 
 
 if __name__ == '__main__':

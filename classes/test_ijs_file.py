@@ -4,6 +4,7 @@ __copyright__ = "Copyright 2021, image_junk_snooper project"
 __license__ = ""
 __version__ = "0.0.1"
 
+import pprint
 import unittest
 import logging
 from datetime import date
@@ -51,22 +52,27 @@ class TestIjsFile(unittest.TestCase):
         msg = "Cannot get file meta data"
         self.assertIsInstance(self.ijs_file.get_file_meta_data(url_path_file), dict, msg)
 
-    def test_check_create_open_file(self):
+    def test_create_file(self):
+        path = "../output_data/test_file_report/"
+        file_name = "file_data_version_0.csv"
+        mode = ""
+        msg = "Failed to create or open the file"
+        self.assertIsInstance(self.ijs_file.create_file(path, file_name), object, msg)
+
+    def test_check_file_name(self):
         path = "../output_data/test_file_report/"
         file_name = "file_data_version_"
         file_ext = ".csv"
-        mode = ""
-        msg = "Failed to create or open the file"
-        self.assertIsInstance(self.ijs_file.check_create_open_file(path, file_name, file_ext), object, msg)
+        msg = "Failed to check for file"
+        self.assertIsInstance(self.ijs_file.check_file_name(path, file_name, file_ext), str ,msg)
 
-    def test_check_create_open_file_fail(self):
-        path = "../output_nix/test_file_report/"
-        file_name = "file_data_version_"
-        file_ext = ".csv"
-        mode = ""
-        msg = "Failed to fail open the file"
-        self.assertFalse(self.ijs_file.check_create_open_file(path, file_name, file_ext), msg)
+    def test_get_file_name(self):
+        path_file_name = ['D:/projects/keh-photos-local/media/10000232238593_08.jpg',
+                          'D:/projects/keh-photos-local/media/catalog\\\\product\\\\3\\\\3\\\\331358-6460_470x313.jpg']
+        msg = f"Cannot get the file name from the path file name {path_file_name}"
 
+        for idx, value in enumerate(path_file_name):
+            self.assertIsInstance(self.ijs_file.get_file_name(value), str, msg)
 
 
 if __name__ == '__main__':

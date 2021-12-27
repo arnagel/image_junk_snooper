@@ -61,10 +61,11 @@ log_abbrv = {
     'tcis': 'Total Cleaned Items Saved',
     'msg': 'Message(s)',
     'trt': 'Total Run Time',
-    'ril': 'Total Images Removed with Shortcut.lnk'}
+    'ril': 'Total Images Removed with Shortcut.lnk',
+    'lol': 'Total final items in the combined output list'}
 log_sum = {'tfi': 0, 'tjf': 0, 'tjrf': 0, 'td': 0, 'tmrv': 0, 'tdcf': 0, 'rip': 0, 'llb': 0, 'ilb': 0, 'imau': 0,
            'ipf': '', 'opf': '', 'tjv': 0, 'msg': '', 'rdlbl': 0, 'r01lbl': 0, 'reptlbl': 0, 'ralphalbl': 0,
-           'tcis': 0, 'trt': 0, 'ril': 0}
+           'tcis': 0, 'trt': 0, 'ril': 0, 'lol': 0}
 
 
 def main(args):
@@ -75,6 +76,9 @@ def main(args):
     log_sum['opf'] = output_file
     # open the input file and read the content
     lst_input_rows = read_csv(in_data + input_file + csv_ext)
+
+    print(f"Input List: {lst_input_rows}")
+
     # get the value from the row.
     dir_value = get_value_column(lst_input_rows)
     # filter all values with duplicates, return a list with the duplicates
@@ -127,6 +131,7 @@ def main(args):
 
     lst_final = add_value_column(lst_input_rows, lst_final_cleaned)
     log_sum['tcis'] = len(lst_final)
+    lst_final = combine_input_clean_output(lst_input_rows, lst_final)
     save_csv(lst_final, out_data + output_file, in_data_header)
     log_sum['trt'] = get_run_time(time.time(), True)
     handle_log_sum()
@@ -540,6 +545,28 @@ def handle_log_sum():
 
     lst_out = [",".join(lst_save)]
     save_json(lst_out, file_name)
+
+
+def combine_input_clean_output(lst_input, lst_clean) -> list:
+    lst_out = []
+    for idx, img_rec in enumerate(lst_input):
+        ref_key = int(img_rec[2])  # get the ref key from the image record
+        flag = 0  # set/rest flag
+        for idx_clean, img_rec_clean in enumerate(lst_clean):
+            # print(f"Img Rec Clean: {img_rec_clean}")
+            ref_key_clean = int(img_rec_clean[2])  # get the ref key from the image record
+            if ref_key == ref_key_clean:
+                flag = 1 # if the input record is in the clean list set flag
+        if flag == 0:  # if the input record is not in the clean list add to the output
+            img_rec[0] = None
+            img_rec[5] = None
+            lst_out.append(img_rec)
+    lst_out.extend(lst_clean)
+    print(f"List input Len: {len(lst_input)}")
+    print(f"List clean Len: {len(lst_clean)}")
+    print(f"List out Len: {len(lst_out)}")
+    log_sum['lol'] = len(lst_out)
+    return lst_out
 
 
 # Press the green button in the gutter to run the script.

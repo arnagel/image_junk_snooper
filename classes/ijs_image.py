@@ -14,19 +14,44 @@ __github__ = 'https://github.com/arnagel/image_junk_snooper.git'
 
 # imports
 import logging
-import pprint
 import re
 import imageio
-from PIL import Image
+from PIL import Image, IptcImagePlugin
 from PIL.ExifTags import TAGS
 from PIL.TiffTags import TAGS
 from PIL.PngImagePlugin import PngImageFile, PngInfo
+import base64
 
 
 class IJSImage(object):
+    # IPTC fields are catalogued in:
+    # https://www.iptc.org/std/photometadata/specification/IPTC-PhotoMetadata
+    dict_iptc_meta = {
+        1: ['iptc:title', 2, 5],
+        2: ['iptc:description', 2, 120],
+        3: ['iptc:headline', 2, 105],
+        4: ['iptc:city', 2, 90],
+        5: ['iptc:copyright', 2, 116],
+        6: ['iptc:country_primary', 2, 101],
+        7: ['iptc:country_detail', 2, 100],
+        8: ['iptc:creator', 2, 80],
+        9: ['iptc:creator_job_title', 2, 85],
+        10: ['iptc:credit_line', 2, 110],
+        11: ['iptc:date_created', 2, 55],
+        12: ['iptc:time_created', 2, 60],
+        13: ['iptc:caption_description_writer', 2, 122],
+        14: ['iptc:instructions', 2, 40],
+        15: ['iptc:intellectual_ genre', 2, 4],
+        16: ['iptc:job_identifier', 2, 103],
+        17: ['iptc:keywords', 2, 25],
+        18: ['iptc:province_state', 2, 95],
+        19: ['iptc:source', 2, 115],
+        20: ['iptc:subject_code', 2, 12],
+        21: ['iptc:sub_location', 2, 92],
+    }
 
     def check_image_content(self, url_path_file) -> dict | bool:
-        dict_out = {}
+        dict_out = {'base64_error': 0}
         try:
             # path to the image or video
             image_name = url_path_file
@@ -38,17 +63,24 @@ class IJSImage(object):
             dict_out.update(dict_base)
             dict_exif = self.get_exif_data(img_type)
             dict_out.update(dict_exif)
+            dict_iptc = self.get_ITPC_data(image_name)
+            dict_out.update(dict_iptc)
             if img_type.format == "PNG":
                 dict_png = self.get_png_data(image_name)
                 dict_out.update(dict_png)
-            # logging.debug(f"Image Content: {dict_out}")
+            """Check if image can be converted to base64"""
+            if not self.test_base64_convert(image_name):
+                dict_out['base64_error'] = 1
+            logging.debug(f"Image Content: {dict_out}")
             img_type.close()
         except OSError as os_err:
-            dict_out['error'] = f"Cannot open image file: {url_path_file} - Error MSG: {os_err}"
+            dict_out['error'] = f"Cannot open image file::Error MSG: {os_err}"
             logging.error(f"OS Error: {dict_out}")
+            return False
         except Exception as ex_err:
-            dict_out['error'] = f"Exception err: {url_path_file} - Error MSG: {ex_err}"
+            dict_out['error'] = f"Exception err::Error MSG: {ex_err}"
             logging.error(f"Exception: {dict_out}")
+            return False
         return dict_out
 
     def get_base_date(self, img_type, pic) -> dict:
@@ -60,7 +92,7 @@ class IJSImage(object):
         dict_base = {
             "Base:Filename": img_type.filename,
             "Base:Format": img_type.format,
-            "Base:Data_Type": pic.dtype,
+            "Base:Data_Type": f"{pic.dtype}",
             "Base:Bit_Depth_(per_Channel)": d,
             "Base:Bit_Depth_(per_Pixel)": (int(d) * int(t)),
             "Base:Number_of_Channels": t,
@@ -70,6 +102,7 @@ class IJSImage(object):
             "Base:Height": img_type.size[1],
             "Base:Megapixels": megapixels
         }
+        logging.debug(f"Check Image Content: {dict_base}")
         return dict_base
 
     def get_exif_data(self, obj_img) -> dict:
@@ -145,3 +178,42 @@ class IJSImage(object):
         dict_png['PNG:meta_data'] = arr_exif
         dict_png['PNG:raw_meta_data'] = metadata
         return dict_png
+
+    def test_base64_convert(self, pic) -> bool:
+        try:
+            image = open(pic, 'rb')
+            image_read = image.read()
+            base64.encodebytes(image_read)
+            logging.info(f"Converted image: {pic} to base64")
+            image.close()
+            return True
+        except base64.binascii.Error:
+            logging.error(f"Cannot base64 image: {pic}. Error: {base64.binascii.Error}")
+            image.close()
+            return False
+        except FileNotFoundError as fnferr:
+            logging.error(f"Cannot open file for base64 check: {pic}. FileNotFoundError: {fnferr}")
+            return False
+        except IOError as ioerr:
+            logging.error(f"Cannot open file for base64 check: {pic}. IOError: {ioerr}")
+            image.close()
+            return False
+
+    def get_ITPC_data(self, pic) -> dict:
+        try:
+            img = Image.open(pic)
+            raw_iptc = IptcImagePlugin.getiptcinfo(img)
+            dict_out = {}
+            for key, value in self.dict_iptc_meta.items():
+                if raw_iptc and (value[1], value[2]) in raw_iptc:
+                    if isinstance(raw_iptc[(value[1], value[2])], list):
+                        dict_out[value[0]] = []
+                        for idx, val in enumerate(raw_iptc[(value[1], value[2])]):
+                            dict_out[value[0]].append(val.decode('utf-8', errors='replace'))
+                    else:
+                        dict_out[value[0]] = raw_iptc[(value[1], value[2])].decode('utf-8', errors='replace')
+            img.close()
+            return dict_out
+        except SyntaxError:
+            logging.info('IPTC Error in %s', pic)
+            return dict_out
