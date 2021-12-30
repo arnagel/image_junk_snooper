@@ -50,6 +50,8 @@ def main(args):
     ijs_folder = IJSFolder()
     ijs_file = IJSFile()
 
+    stdout_bear()
+
     avail_file_name = ijs_file.check_file_name(output_folder, output_file_name, output_ext)
     obj_file = ijs_file.create_file(output_folder, avail_file_name)
     if isinstance(obj_file, bool):
@@ -64,10 +66,38 @@ def main(args):
         parent_folder = parent_folder.strip()
         dict_folder_content = ijs_folder.get_folder_content(repo_path + parent_folder)
         loop_over_files(dict_folder_content['files'])
-    return True
 
 
-def loop_over_files(dict_files):
+def stdout_bear() -> None:
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s',
+                                  '%m-%d-%Y %H:%M:%S')
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.DEBUG)
+    stdout_handler.setFormatter(formatter)
+
+    file_handler = logging.FileHandler('/var/log/bbbc_image_snooper.log')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stdout_handler)
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.DEBUG)
+    stdout_handler.setFormatter(formatter)
+
+    file_handler = logging.FileHandler('/var/log/bbbc_image_snooper.log')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stdout_handler)
+
+
+def loop_over_files(dict_files) -> None:
     ijs_file = IJSFile()
     ijs_helper = IJSHelper()
     ijs_report = IJSReport()
@@ -108,7 +138,7 @@ def get_config() -> None:
     logging.debug(f"Output File Name: {output_file_name}")
 
 
-def get_args(argv):
+def get_args(argv) -> None:
     global user_output_file_name
 
     try:

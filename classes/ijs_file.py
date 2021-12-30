@@ -13,7 +13,6 @@ __package__ = "image_junk_snooper"
 __github__ = 'https://github.com/arnagel/image_junk_snooper.git'
 
 # imports
-import classes
 from classes.ijs_image import IJSImage
 from classes.ijs_helper import IJSHelper
 import logging

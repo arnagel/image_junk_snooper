@@ -56,15 +56,9 @@ class TestIJSImage(unittest.TestCase):
         msg = "Cannot get file content information"
         self.assertTrue(self.ijs_image.test_base64_convert(url_path_file), msg)
 
-    def test_getITPC_meta_data(self):
-        lst_files = ['C:/Users/anagel.LAPTOP-8N7VRN57/OneDrive/Pictures/KEH/ITPC Image Standard/IPTC-PhotometadataRef-Std2021.1.jpg',
-                     "D:/Projects/keh-photos-local/media/10000232238593_01.jpg"]
-        msg = "Cannot get the ITPC meta data"
-        for idx, val in enumerate(lst_files):
-            self.assertIsInstance(self.ijs_image.get_ITPC_meta_data(val), dict, msg)
-
     def test_getITPC_data(self):
-        lst_files = ['C:/Users/anagel.LAPTOP-8N7VRN57/OneDrive/Pictures/KEH/ITPC Image Standard/IPTC-PhotometadataRef-Std2021.1.jpg'
+        lst_files = [
+            'C:/Users/anagel.LAPTOP-8N7VRN57/OneDrive/Pictures/KEH/ITPC Image Standard/IPTC-PhotometadataRef-Std2021.1.jpg'
             , "D:/Projects/keh-photos-local/media/10000232238593_01.jpg"]
         msg = "Cannot get the ITPC meta data"
         for idx, val in enumerate(lst_files):
