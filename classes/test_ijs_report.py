@@ -79,6 +79,14 @@ class TestIJSReport(unittest.TestCase):
 
         for idx, value in enumerate(content):
             self.assertTrue(self.ijs_report.create_file_report(path, file_name, value), msg)
+            
+    def test_read_file_report(self):
+        path = self.url_path
+        file_name = "uploads_update__2022-01-19_0.csv"
+        assert_value = []
+        msg = 'Failed to read csv file'
+        
+        self.assertListEqual(self.ijs_report.read_file_report(path+file_name), assert_value, msg)
 
 
 if __name__ == '__main__':

@@ -123,3 +123,23 @@ class IJSReport(IJSFile, IJSHelper):
         f_obj.close()
 
         return True
+
+    def read_file_report(self, path_file_name) -> list | bool:
+        lst_content = []
+        try:
+            with open(path_file_name, newline='') as csv_file:
+                reader = csv.DictReader(csv_file)
+                try: 
+                    for row in reader:
+                        lst_content.append(row)
+                except csv.Error as err:
+                    logging.error(f'file {path_file_name}, line {reader.line_num}: {err}')
+            csv_file.close()
+            return lst_content
+        except IOError as err:
+            logging.error(f'Failed to open file to read csv data: {path_file_name}: {err}')
+            return False
+
+
+
+
