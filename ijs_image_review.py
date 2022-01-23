@@ -27,6 +27,9 @@ from classes.ijs_report import IJSReport
 
 config_path_file = './config/config.ini'
 user_output_file_name = ''
+user_db_name = ''
+db_engine = 'bq'
+db_table_prefix = ''
 output_file_name = ''
 output_folder = ''
 output_ext = ''
@@ -55,7 +58,8 @@ def main(args):
     avail_file_name = ijs_file.check_file_name(output_folder, output_file_name, output_ext)
     obj_file = ijs_file.create_file(output_folder, avail_file_name)
     if isinstance(obj_file, bool):
-        logging.error(f"Cannot create the output file: {output_folder + avail_file_name}. Cannot continue, need to exit")
+        logging.error(
+            f"Cannot create the output file: {output_folder + avail_file_name}. Cannot continue, need to exit")
         sys.exit("Fail")
     """Close the file for now, no need to keep it open for the first part"""
     obj_file.close()
@@ -120,6 +124,7 @@ def get_config() -> None:
     global output_file_name
     global output_folder
     global output_ext
+    global db_table_prefix
     config = configparser.ConfigParser()
     config.read(config_path_file)
     log_data = config['Log_Setup']['log_data']
@@ -136,22 +141,29 @@ def get_config() -> None:
     output_ext = config['Output_File_Setup']['output_ext']
     output_file_name = user_output_file_name + '_' + str(date.today()) + '_'
     logging.debug(f"Output File Name: {output_file_name}")
+    db_table_prefix = config['Sql_Database_Names']['bq_it_department']
 
 
 def get_args(argv) -> None:
     global user_output_file_name
+    global user_db_name
+    global db_engine
 
     try:
-        opts, args = getopt.getopt(argv, "ht:o:", ["ofile="])
+        opts, args = getopt.getopt(argv, "ht:o:db", ["ofile=", "dbname="])
     except getopt.GetoptError:
         print('ijs_image_review.py -o <output_file>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('ijs_image_review.py -o <output_file>')
+            print('ijs_image_review.py -o <output_file> -db <database_name>')
             sys.exit()
         elif opt in ("-o", "--ofile"):
             user_output_file_name = arg
+        elif opt in ("-db", "--dbname"):
+            user_db_name = arg
+        elif opt in ("-dbe", "--dbengine"):
+            db_engine = arg
 
 
 # Press the green button in the gutter to run the script.
