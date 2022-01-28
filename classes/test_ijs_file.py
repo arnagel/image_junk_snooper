@@ -66,6 +66,13 @@ class TestIjsFile(unittest.TestCase):
         msg = "Failed to check for file"
         self.assertIsInstance(self.ijs_file.check_file_name(path, file_name, file_ext), str ,msg)
 
+    def test_check_file_name(self):
+        path = "../output_data/sql_files/"
+        file_name = "test_sql_file"
+        file_ext = "sql"
+        msg = "Failed to check for file"
+        self.assertIsInstance(self.ijs_file.check_file_name(path, file_name, file_ext), str, msg)
+
     def test_get_file_name(self):
         path_file_name = ['D:/projects/keh-photos-local/media/10000232238593_08.jpg',
                           'D:/projects/keh-photos-local/media/catalog\\\\product\\\\3\\\\3\\\\331358-6460_470x313.jpg']
@@ -73,6 +80,20 @@ class TestIjsFile(unittest.TestCase):
 
         for idx, value in enumerate(path_file_name):
             self.assertIsInstance(self.ijs_file.get_file_name(value), str, msg)
+
+    def test_reached_max_file_size_true(self):
+        path_file_name = '../output_data/sql_files/test_sql_file.sql'
+        max_file_size = 30000  # Smaller then current file size
+        msg = "Cannot check file size"
+
+        self.assertTrue(self.ijs_file.check_reached_max_file_size(path_file_name, max_file_size), msg)
+
+    def test_reached_max_file_size_false(self):
+        path_file_name = '../output_data/sql_files/test_sql_file.sql'
+        max_file_size = 40000  # larger then curr file size
+        msg = "Cannot check file size"
+
+        self.assertFalse(self.ijs_file.check_reached_max_file_size(path_file_name, max_file_size), msg)
 
 
 if __name__ == '__main__':

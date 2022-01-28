@@ -107,6 +107,9 @@ class TestIJSHelper(unittest.TestCase):
 
         self.assertIsInstance(self.ijs_helper.convert_Unix_to_Human(u_time, tz_offset, d_format), str, msg)
 
+    def test_get_col_list(self):
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()

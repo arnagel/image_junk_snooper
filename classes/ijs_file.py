@@ -60,14 +60,20 @@ class IJSFile(IJSImage, IJSHelper):
 
     def check_file_name(self, path, file_name, file_ext) -> str:
         cnt = 0
-        file_search = path + file_name + str(cnt) + file_ext
+        file_search = path + file_name + "_" + str(cnt) + "." + file_ext
         while os.path.exists(file_search):
             cnt += 1
-            file_search = path + file_name + str(cnt) + file_ext
+            file_search = path + file_name + "_" + str(cnt) + "." + file_ext
         logging.debug(f"Available File Name: {file_search}")
-        return file_name + str(cnt) + file_ext
+        return file_name + "_" + str(cnt) + "." + file_ext
 
     def get_file_name(self, path_file_name) -> str:
         lst_file_name = re.split('[/|\\\\]', path_file_name)
         logging.debug(f"File name: {lst_file_name[-1]}")
         return lst_file_name[-1]
+
+    def check_reached_max_file_size(self, path_file_name, max_file_size) -> bool:
+        curr_file_size = os.path.getsize(path_file_name)
+        if curr_file_size >= max_file_size:
+            return True
+        return False

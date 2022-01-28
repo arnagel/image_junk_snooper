@@ -16,50 +16,15 @@ __github__ = 'https://github.com/arnagel/image_junk_snooper.git'
 import logging
 import csv
 import os
-from classes.ijs_helper import IJSHelper
+from classes.ijs_file import IJSFile
 
 
-class IJSDatabase(IJSHelper):
+class IJSDatabase(IJSFile):
 
     def __init__(self):
         super().__init__()
 
-    def create_file_report(self, path, file_name, content) -> bool:
-        """Open the file and get the file object"""
-        f_obj = self.create_file(path, file_name)
-        if not isinstance(f_obj, object):
-            logging.error("Cannot open file")
-            return False
-
-        """Create the csv object"""
-        csv_dict_writer = csv.DictWriter(f_obj, self.lst_col_name_file_report)
-        """Write header if the file is empty"""
-        if os.fstat(f_obj.fileno()).st_size < 10:
-            csv_dict_writer.writeheader()
-
-        """Loop over the content and place it into the correct position of the csv string"""
-        lst_content = {'error': ''}
-        for key in self.lst_col_name_file_report:
-            if key in content:
-                if key == 'META:creation_date' or key == 'META:last_modified':
-                    lst_content[key] = self.convert_Unix_to_Human(content[key], 5, '%m/%d/%Y %H:%M:%S')
-                elif key == 'error':
-                    lst_content[key] += f"{content[key]} | "
-                else:
-                    lst_content[key] = content[key]
-            else:
-                lst_content[key] = ''
-                logging.info(f"Cannot find: {key} in content")
-
-        """Write the content to the file"""
-        csv_dict_writer.writerow(lst_content)
-
-        """Close the file object"""
-        f_obj.close()
-
-        return True
-
-    def insert_csv_to_sql_convert(self, database_table, lst_dict_csv_record) -> str | bool:
+    def insert_csv_to_sql_convert(self, database_table, lst_dict_csv_record) -> list | bool:
         lst_insert_statements = []
         insert_str = "INSERT INTO " + database_table
         # add column names
@@ -73,18 +38,43 @@ class IJSDatabase(IJSHelper):
             for key in dict_csv_record:
                 insert_values += "'" + dict_csv_record[key] + "', "
             insert_values = "VALUES(" + insert_values + ");"
-
             insert_str += insert_col + insert_values
+            lst_insert_statements.append(insert_str)
 
-        return insert_str
+        return lst_insert_statements
 
-    def save_statement_to_sql_file(self, path_file_name, statement) -> bool:
+    def save_statement_to_sql_file(self, path, file_name, lst_statement) -> bool:
+        # check the current file
+        # if current file is larger then max, create new file name
+        # check if new file name already exist
+        # if yes, create new file name, do while file name exist
+        max_file_size = 30000
+        file_ext = '.jpg'
+        if self.check_reached_max_file_size(path_file_name, max_file_size):
+            # we need a new file name
+            new_filename = self.check_file_name(path, file_name, file_ext)
+
         # write the statement to the file
-        try:
-            with open(path_file_name, 'w') as file:
-                file.write(statement)
-            file.close()
-            return True
-        except IOError:
-            logging.error(f"failed to save statement to sql|error: {IOError}")
-            return False
+        line_break = '\n'
+        max_file_size = 30000
+        with open(path_file_name, 'a+') as file:
+            file.seek(0)
+            for statement in lst_statement:
+                # if file name reaches max file size, save the remaining list
+                # close the current file
+                # create a new filename
+                # write the remaining list to file
+
+
+
+
+
+
+                try:
+                    file.write(statement + line_break)
+                    file.seek(0, os.SEEK_END)
+                    curr_file_size = file.tell()
+                    if curr_file_size >= max_file_size:
+                        print(f"Reach the maximum: {curr_file_size}")
+                except IOError:
+                    logging.error(f"failed to save statement to sql|error: {IOError}")

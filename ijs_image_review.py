@@ -40,6 +40,7 @@ log_file_name = ''
 vm_url = ''
 vm_bucket = ''
 vm_parent_folders = []
+max_sql_file_size = 0
 obj_file = None
 
 
@@ -125,6 +126,7 @@ def get_config() -> None:
     global output_folder
     global output_ext
     global db_table_prefix
+    global max_sql_file_size
     config = configparser.ConfigParser()
     config.read(config_path_file)
     log_data = config['Log_Setup']['log_data']
@@ -142,6 +144,7 @@ def get_config() -> None:
     output_file_name = user_output_file_name + '_' + str(date.today()) + '_'
     logging.debug(f"Output File Name: {output_file_name}")
     db_table_prefix = config['Sql_Database_Names']['bq_it_department']
+    max_sql_file_size = config['Sql_File_Attributes']['max_sql_file_size_bytes']
 
 
 def get_args(argv) -> None:
